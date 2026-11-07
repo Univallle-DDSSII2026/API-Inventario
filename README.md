@@ -1,4 +1,4 @@
-# API de Inventario — ejemplo transaccional (Equipo 4)
+# API de Inventario — ejemplo transaccional (Equipo 5)
 
 Ejemplo de punta a punta del proceso crítico del DAS (Figura 6): la **salida por pedido de productos terminados** (HU_CUTIT_04) con la **notificación de stock bajo** (HU_CUTIT_17). Recorre las capas del DAS:
 
