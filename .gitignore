@@ -1,0 +1,40 @@
+# Basado en la guía del curso (sección 2, paso 4).
+
+# Maven
+target/
+*.war
+*.ear
+
+# Gradle
+.gradle/
+build/
+# El jar del wrapper sí se versiona: sin él, ./gradlew no funciona en el CI.
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+out/
+
+# Variables de entorno
+.env
+application-local.properties
+
+# Logs
+*.log
+logs/
+
+# Reportes y otros artefactos
+coverage/
+dist/
+node_modules/
+__pycache__/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

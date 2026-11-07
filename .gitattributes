@@ -1,0 +1,12 @@
+# Finales de línea consistentes aunque el equipo trabaje en Windows.
+* text=auto
+
+# Los scripts que corren en Linux (GitHub Actions, Docker) deben tener LF, o ./gradlew falla.
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Los scripts de Windows conservan CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.jar binary

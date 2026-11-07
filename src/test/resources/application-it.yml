@@ -1,0 +1,15 @@
+# Perfil de la prueba de integración. Testcontainers entrega la conexión real a PostgreSQL (@ServiceConnection);
+# los valores de abajo solo resuelven los marcadores de application.yml.
+spring:
+  datasource:
+    url: jdbc:postgresql://reemplazada-por-testcontainers/inventario
+    username: reemplazado
+    password: reemplazado
+
+server:
+  port: 0
+
+inventario:
+  notificaciones:
+    url: http://localhost:1
+    api-key: clave-de-prueba

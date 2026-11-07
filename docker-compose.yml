@@ -1,0 +1,47 @@
+# Uso: cp .env.example .env && docker compose up --build
+name: inventario
+
+services:
+  db:
+    image: postgres:17.9-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - inventario-datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - inventario-red
+
+  # Simula la API de Notificaciones del Equipo 5 para la demostración.
+  wiremock:
+    image: wiremock/wiremock:3.13.2
+    volumes:
+      - ./wiremock:/home/wiremock
+    networks:
+      - inventario-red
+
+  backend:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      wiremock:
+        condition: service_started
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    networks:
+      - inventario-red
+
+networks:
+  inventario-red:
+
+volumes:
+  inventario-datos:

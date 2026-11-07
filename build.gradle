@@ -1,0 +1,119 @@
+// API de Inventario (Equipo 4) — ejemplo transaccional HU_CUTIT_04 + HU_CUTIT_17.
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.2'
+    id 'jacoco'
+    id 'checkstyle'
+}
+
+group = 'co.edu.univalle'
+version = '0.1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    def springBootBom = platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
+    implementation springBootBom
+    compileOnly springBootBom
+    annotationProcessor springBootBom
+
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Pruebas unitarias ("test") y de integración con Testcontainers ("integrationTest", requiere Docker).
+def paqueteIntegracion = '**/inventario/integration/**'
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    // «Fecha actual» de Bogotá, igual que en el contenedor (Dockerfile).
+    systemProperty 'user.timezone', 'America/Bogota'
+}
+
+tasks.named('test', Test) {
+    exclude paqueteIntegracion
+}
+
+def integrationTest = tasks.register('integrationTest', Test) {
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include paqueteIntegracion
+    shouldRunAfter tasks.named('test')
+}
+
+tasks.named('check') {
+    dependsOn integrationTest
+}
+
+// JaCoCo: cobertura >= 80 % sumando pruebas unitarias y de integración (guía del curso).
+jacoco {
+    toolVersion = '0.8.14'
+}
+
+def archivosCobertura = fileTree(layout.buildDirectory.dir('jacoco')) { include '*.exec' }
+// La clase de arranque (main) no se ejecuta en las pruebas: Spring se levanta sin llamar a main.
+def clasesCobertura = sourceSets.main.output.asFileTree.matching {
+    exclude 'co/edu/univalle/inventario/InventarioApplication.class'
+}
+
+tasks.named('jacocoTestReport', JacocoReport) {
+    mustRunAfter tasks.named('test'), integrationTest
+    executionData.setFrom(archivosCobertura)
+    classDirectories.setFrom(clasesCobertura)
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.named('jacocoTestCoverageVerification', JacocoCoverageVerification) {
+    mustRunAfter tasks.named('test'), integrationTest
+    executionData.setFrom(archivosCobertura)
+    classDirectories.setFrom(clasesCobertura)
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+        }
+    }
+}
+
+checkstyle {
+    toolVersion = '13.4.2'
+    configFile = file('checkstyle.xml')
+    maxWarnings = 0
+}
+
+tasks.named('jar') {
+    enabled = false
+}
+
+tasks.named('bootJar') {
+    archiveFileName = 'inventario-api.jar'
+}

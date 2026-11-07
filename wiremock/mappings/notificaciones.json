@@ -1,0 +1,8 @@
+{
+  "request": { "method": "POST", "url": "/notificaciones" },
+  "response": {
+    "status": 201,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": { "estado": "RECIBIDA" }
+  }
+}
