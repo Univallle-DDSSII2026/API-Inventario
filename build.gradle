@@ -116,8 +116,8 @@ checkstyle {
 // SONAR_TOKEN del repositorio.
 sonar {
     properties {
-        property 'sonar.projectKey', 'TU_ORGANIZACION_inventario-api'
-        property 'sonar.organization', 'tu_organizacion'
+        property 'sonar.projectKey', 'Univallle-DDSSII2026_API-Inventario'
+        property 'sonar.organization', 'univallle-ddssii2026'
         property 'sonar.host.url', 'https://sonarcloud.io'
         property 'sonar.coverage.jacoco.xmlReportPaths',
                 layout.buildDirectory.file('reports/jacoco/jacocoTestReport/jacocoTestReport.xml').get().asFile.path
