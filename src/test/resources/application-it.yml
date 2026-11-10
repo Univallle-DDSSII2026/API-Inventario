@@ -13,3 +13,7 @@ inventario:
   notificaciones:
     url: http://localhost:1
     api-key: clave-de-prueba
+
+  seguridad:
+    api-keys: clave-equipo-it:EQUIPO,clave-fabricacion-it:FABRICACION
+    limite-por-minuto: 1000

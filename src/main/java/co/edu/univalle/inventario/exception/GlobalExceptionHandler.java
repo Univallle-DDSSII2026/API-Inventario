@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -55,6 +56,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> manejarSolicitudRechazada(SolicitudRechazadaException excepcion) {
         return ResponseEntity.status(UNPROCESSABLE_CONTENT).body(
                 new ErrorResponse(UNPROCESSABLE_CONTENT, excepcion.getMessage(), excepcion.getLineasRechazadas()));
+    }
+
+    /**
+     * Responde 403 cuando el rol de la API Key no tiene permiso para el endpoint (RBAC con @PreAuthorize).
+     * @param excepcion acceso denegado por Spring Security
+     * @return respuesta 403
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> manejarAccesoDenegado(AccessDeniedException excepcion) {
+        return responder(HttpStatus.FORBIDDEN, "No tiene permiso para realizar esta operación.");
     }
 
     /**

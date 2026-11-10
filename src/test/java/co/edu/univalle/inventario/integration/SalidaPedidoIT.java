@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 
 import co.edu.univalle.inventario.client.NotificacionesClient;
+import co.edu.univalle.inventario.filter.SecurityFilter;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -49,6 +50,10 @@ class SalidaPedidoIT {
         POSTGRES.start();
     }
 
+    /** Claves de application-it.yml. */
+    private static final String CLAVE_EQUIPO = "clave-equipo-it";
+    private static final String CLAVE_FABRICACION = "clave-fabricacion-it";
+
     @MockitoBean
     private NotificacionesClient notificacionesClient;
 
@@ -62,6 +67,10 @@ class SalidaPedidoIT {
     }
 
     private Respuesta registrarSalida(String referencia, String codigo, int cantidad) {
+        return registrarSalida(CLAVE_EQUIPO, referencia, codigo, cantidad);
+    }
+
+    private Respuesta registrarSalida(String clave, String referencia, String codigo, int cantidad) {
         String hoy = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         String cuerpo = "{\"referenciaPedido\":\"" + referencia + "\",\"fecha\":\"" + hoy + "\",\"lineas\":["
                 + "{\"codigoArticulo\":\"" + codigo + "\",\"cantidad\":" + cantidad + "},"
@@ -69,7 +78,19 @@ class SalidaPedidoIT {
         return RestClient.create("http://localhost:" + puerto).post()
                 .uri("/inventario/salidas/pedidos/productos-terminados")
                 .contentType(MediaType.APPLICATION_JSON)
+                .headers(encabezados -> {
+                    if (clave != null) {
+                        encabezados.set(SecurityFilter.ENCABEZADO, clave);
+                    }
+                })
                 .body(cuerpo)
+                .exchange((peticion, respuesta) -> new Respuesta(respuesta.getStatusCode().value(),
+                        new String(respuesta.getBody().readAllBytes(), StandardCharsets.UTF_8)));
+    }
+
+    private Respuesta consultar(String ruta) {
+        return RestClient.create("http://localhost:" + puerto).get()
+                .uri(ruta)
                 .exchange((peticion, respuesta) -> new Respuesta(respuesta.getStatusCode().value(),
                         new String(respuesta.getBody().readAllBytes(), StandardCharsets.UTF_8)));
     }
@@ -183,5 +204,39 @@ class SalidaPedidoIT {
         // Assert: nunca existencias negativas.
         assertThat(aceptadas).isEqualTo(5);
         assertThat(existencias("PT-20001")).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void deberia_responder_401_sin_api_key_o_con_una_api_key_invalida() {
+        // Act
+        Respuesta sinClave = registrarSalida(null, "PED-IT-4", "PT-10001", 1);
+        Respuesta claveFalsa = registrarSalida("clave-falsa", "PED-IT-4", "PT-10001", 1);
+
+        // Assert
+        assertThat(sinClave.estado()).isEqualTo(401);
+        assertThat(sinClave.cuerpo()).contains(SecurityFilter.MENSAJE_NO_AUTORIZADO);
+        assertThat(claveFalsa.estado()).isEqualTo(401);
+    }
+
+    @Test
+    void deberia_responder_403_si_el_sistema_no_tiene_permiso_para_la_salida() {
+        // Act: la API de Fabricación no registra salidas por pedido (RBAC).
+        Respuesta respuesta = registrarSalida(CLAVE_FABRICACION, "PED-IT-5", "PT-10001", 1);
+
+        // Assert
+        assertThat(respuesta.estado()).isEqualTo(403);
+        assertThat(respuesta.cuerpo()).contains("No tiene permiso para realizar esta operación.");
+    }
+
+    @Test
+    void deberia_dejar_ver_la_documentacion_y_el_health_check_sin_api_key() {
+        // Act
+        Respuesta documentacion = consultar("/v3/api-docs");
+        Respuesta salud = consultar("/actuator/health");
+
+        // Assert
+        assertThat(documentacion.estado()).isEqualTo(200);
+        assertThat(documentacion.cuerpo()).contains("X-API-Key");
+        assertThat(salud.estado()).isEqualTo(200);
     }
 }
