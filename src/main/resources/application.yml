@@ -31,3 +31,8 @@ inventario:
   notificaciones:
     url: ${NOTIFICACIONES_URL}
     api-key: ${NOTIFICACIONES_API_KEY}
+
+  seguridad:
+    # Formato clave:ROL,clave:ROL con los roles FABRICACION, NOTIFICACIONES y EQUIPO (DAS v1.3, Tabla 14).
+    api-keys: ${API_KEYS}
+    limite-por-minuto: ${RATE_LIMIT_PER_MINUTE}

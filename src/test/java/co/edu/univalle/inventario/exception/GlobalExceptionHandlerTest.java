@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponseException;
@@ -90,5 +91,16 @@ class GlobalExceptionHandlerTest {
         // Assert
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(respuesta.getBody().mensaje()).doesNotContain("secreto");
+    }
+
+    @Test
+    void deberia_responder_403_si_el_rol_de_la_api_key_no_tiene_permiso() {
+        // Act
+        ResponseEntity<ErrorResponse> respuesta = manejador.manejarAccesoDenegado(
+                new AccessDeniedException("Access Denied"));
+
+        // Assert
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(respuesta.getBody().mensaje()).isEqualTo("No tiene permiso para realizar esta operación.");
     }
 }
