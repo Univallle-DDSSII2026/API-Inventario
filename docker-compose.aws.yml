@@ -1,0 +1,52 @@
+
+name: inventario
+
+services:
+  db:
+    image: postgres:17.9-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - inventario-datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    networks:
+      - inventario-red
+
+  wiremock:
+    image: wiremock/wiremock:3.13.2
+    restart: unless-stopped
+    volumes:
+      - ./wiremock:/home/wiremock
+    mem_limit: 256m
+    networks:
+      - inventario-red
+
+  backend:
+    image: inventario-backend:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      wiremock:
+        condition: service_started
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    mem_limit: 768m
+    networks:
+      - inventario-red
+
+networks:
+  inventario-red:
+
+volumes:
+  inventario-datos:
