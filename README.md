@@ -1,66 +1,138 @@
-# API de Inventario — ejemplo transaccional (Equipo 5)
+\# API de Inventario (Equipo 5)
 
-Ejemplo de punta a punta del proceso crítico del DAS (Figura 6): la **salida por pedido de productos terminados** (HU_CUTIT_04) con la **notificación de stock bajo** (HU_CUTIT_17). Recorre las capas del DAS:
 
-```
-HTTP → RateLimitFilter → SecurityFilter (View, API Key) → MovimientoController (View) → SalidaPedidoRequest (DTO) → MovimientoService (Logic, @Transactional)
-     → ValidadorSalida (Logic) → ArticuloRepository / MovimientoRepository (Data Access) → PostgreSQL
-     → respuesta 201/422 → después del commit: NotificacionesClient (Integration) → API de Notificaciones
-```
 
-Qué demuestra:
+Arquetipo básico del Sprint 0 — Desarrollo de Software II, Universidad del Valle.
 
-- **Una transacción por solicitud**: se registran las líneas válidas y se rechazan solo las inválidas; si todas fallan, no se guarda nada (422).
-- **Bloqueo de filas** (`SELECT … FOR UPDATE`): diez salidas simultáneas nunca dejan existencias negativas.
-- **Seguridad con API Key por sistema cliente**: el `SecurityFilter` valida el encabezado `X-API-Key` y asigna el rol (FABRICACION, NOTIFICACIONES o EQUIPO); sin clave o con una clave inválida responde 401, y si el rol no tiene permiso, 403 (`@PreAuthorize`).
-- **Rate limit**: el `RateLimitFilter` (Bucket4j) responde 429 si un cliente pasa de `RATE_LIMIT_PER_MINUTE` peticiones por minuto.
-- **Outbox**: la notificación se guarda en la misma transacción y se envía después del commit; si la API de Notificaciones falla, la salida no se revierte.
 
-## Requisitos
 
-Docker Desktop 4.x (Docker Compose 2.20 o superior) y, para correr las pruebas sin Docker Compose, JDK 21.
+Es una versión inicial que recorre todas las capas con un único caso: \*\*consultar un artículo por su código\*\*.
 
-## Ejecutar
+
+
+\## Tecnologías
+
+
+
+\- Java 21 y Spring Boot 4.1.2
+
+\- Spring Data JPA (Hibernate) y PostgreSQL 17
+
+\- Flyway (migraciones de la base de datos)
+
+\- Gradle (wrapper incluido)
+
+\- Pruebas con JUnit 5 y Testcontainers
+
+\- Cobertura con JaCoCo, estilo con Checkstyle y análisis con SonarCloud
+
+
+
+\## Estructura
+
+
+
+| Capa (DAS) | Paquete | Clase |
+
+|---|---|---|
+
+| Vista | `controller` | `ArticuloController` |
+
+| Lógica | `service` | `ArticuloService` |
+
+| Acceso a datos | `repository` | `ArticuloRepository` |
+
+| Modelo | `model` | `Articulo`, `TipoArticulo` |
+
+| Transferencia | `dto` | `ArticuloDto` |
+
+| Configuración | `config` | `OpenApiConfig` |
+
+
+
+La tabla `articulo` se crea con la migración `src/main/resources/db/migration/V1\_\_esquema\_inicial.sql`
+
+y los datos de demostración con `V2\_\_datos\_demo.sql`.
+
+
+
+\## Endpoint
+
+
+
+| Método | Ruta | Respuesta |
+
+|---|---|---|
+
+| GET | `/inventario/articulos/{codigo}` | `200` con el artículo, o `404` si no existe |
+
+
+
+Ejemplos: `PT-00001` devuelve 200 y `PT-99999` devuelve 404.
+
+
+
+Documentación interactiva (Swagger): http://localhost:8080/swagger-ui.html
+
+
+
+\## Ejecutar con Docker
+
+
 
 ```bash
+
 cp .env.example .env
+
 docker compose up --build
+
 ```
 
-Abra <http://localhost:8080/swagger-ui.html>, haga clic en **Authorize**, escriba la clave del Equipo 4 que puso en `API_KEYS` (en el `.env.example` es `clave-equipo-cambiar`) y ejecute `POST /inventario/salidas/pedidos/productos-terminados` con la fecha de hoy:
 
-```json
-{
-  "referenciaPedido": "PED-2026-0042",
-  "fecha": "07/11/2026",
-  "lineas": [
-    { "codigoArticulo": "PT-00001", "cantidad": 6 },
-    { "codigoArticulo": "PT-00099", "cantidad": 1 }
-  ]
-}
-```
 
-Respuesta 201: la línea 1 se registra y la 2 se rechaza («no existe un artículo con el código PT-00099»). PT-00001 (Cadena Ripit 5000) baja de 10 a 4, por debajo de su umbral de 5, y se envía la notificación. Para verlo en la base de datos:
+En Windows (PowerShell): `Copy-Item .env.example .env`.
+
+
+
+Si cambia el esquema de la base de datos (por ejemplo, la migración V1), borre el volumen antes de volver a levantar:
+
+
 
 ```bash
-docker compose exec db psql -U inventario_app -d inventario -c "SELECT codigo, existencias FROM articulo;"
-docker compose exec db psql -U inventario_app -d inventario -c "SELECT id, estado, fecha_envio FROM notificacion;"
+
+docker compose down -v --remove-orphans
+
 ```
 
-Artículos de demostración: PT-00001 (10 existencias, umbral 5), PT-00002 (3, umbral 1) y MP-00001 (materia prima, sirve para ver el rechazo «no es un producto terminado»).
 
-Sin la clave, la respuesta es 401; con la clave de Fabricación, 403. La documentación (`/swagger-ui.html`, `/v3/api-docs`) y `/actuator/health` no piden clave.
 
-## Pruebas y cobertura
+\## Pruebas y cobertura
+
+
+
+Se necesita Docker en ejecución, porque las pruebas usan Testcontainers con PostgreSQL.
+
+
 
 ```bash
-./gradlew test                      # unitarias (validador y servicio)
-./gradlew integrationTest           # integración con PostgreSQL real (requiere Docker)
-./gradlew jacocoTestReport jacocoTestCoverageVerification   # reporte y regla >= 80 %
+
+./gradlew test
+
+./gradlew integrationTest
+
+./gradlew jacocoTestReport
+
 ```
 
-Reporte: `build/reports/jacoco/jacocoTestReport/html/index.html`. En Windows use `gradlew.bat`.
 
-## Qué queda fuera de este ejemplo
 
-El monitoreo con Prometheus y Grafana (se agrega después, según indique el profesor), reintentos programados de notificaciones, validación de los 30 días de antigüedad de la fecha y las demás historias de usuario. Están en el DAS y se agregan sobre esta misma estructura.
+En Windows (PowerShell) use `.\\gradlew.bat` en lugar de `./gradlew`.
+
+
+
+Reporte de cobertura: `build/reports/jacoco/test/html/index.html`
+
+
+
+El CI exige una cobertura de líneas de al menos 80 %.
+

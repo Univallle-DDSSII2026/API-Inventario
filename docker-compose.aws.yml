@@ -37,8 +37,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      wiremock:
-        condition: service_started
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     mem_limit: 768m
