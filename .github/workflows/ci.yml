@@ -4,7 +4,7 @@ name: CI — Integración Continua
 # También corre en los PR hacia main, para que el ruleset de main pueda exigir los mismos checks.
 on:
   pull_request:
-    branches: [ develop, main ]
+    branches: [ develop ]
 
 permissions:
   contents: read
