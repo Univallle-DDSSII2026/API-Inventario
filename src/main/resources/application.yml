@@ -26,8 +26,3 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
-
-inventario:
-  notificaciones:
-    url: ${NOTIFICACIONES_URL}
-    api-key: ${NOTIFICACIONES_API_KEY}

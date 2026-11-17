@@ -18,14 +18,6 @@ services:
     networks:
       - inventario-red
 
-  # Simula la API de Notificaciones del Equipo 5 para la demostración.
-  wiremock:
-    image: wiremock/wiremock:3.13.2
-    volumes:
-      - ./wiremock:/home/wiremock
-    networks:
-      - inventario-red
-
   backend:
     build: .
     env_file:
@@ -33,8 +25,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      wiremock:
-        condition: service_started
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     networks:

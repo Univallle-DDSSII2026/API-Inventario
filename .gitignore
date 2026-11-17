@@ -38,3 +38,10 @@ __pycache__/
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Credenciales y archivos privados de AWS
+*.pem
+*.key
+
+# Imágenes Docker exportadas
+*.tar
