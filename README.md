@@ -140,13 +140,21 @@ El CI exige una cobertura de líneas de al menos 80 %.
 
 El workflow se ejecuta manualmente sobre `main`. Elige uno de estos modos:
 
-- `build` (predeterminado) valida Compose y Bash y construye la imagen localmente en el runner.
-- `publish` construye y publica la imagen en Docker Hub con el SHA completo del commit como etiqueta.
-- `deploy` construye y publica la imagen. Después intenta actualizar solo el backend de EC2 usando el digest SHA-256 de esa imagen.
+- `build` (predeterminado) usa el entorno `cd-validation`, valida Compose y Bash y construye la imagen en el runner.
+- `publish` usa el entorno `dockerhub`, construye la imagen y la publica con el SHA completo del commit como etiqueta.
+- `deploy` primero construye y publica como en `publish`. Luego, con la aprobación de `production`, actualiza solo el backend de EC2 usando el digest SHA-256 publicado.
 
-En GitHub, configura `DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN` como secretos del entorno `dockerhub`. En el entorno `production`, configura los secretos `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` y `EC2_KNOWN_HOSTS`. Limita `production` a `main` y exige la aprobación de un revisor antes de habilitar el despliegue con `EC2_DEPLOY_ENABLED=true`.
+### Entornos de GitHub
 
-Antes de ejecutar `deploy`, guarda el Compose y la referencia de imagen anteriores. Instala en `~/despliegue` el `docker-compose.aws.yml` exacto del commit aprobado y comprueba la compatibilidad de Flyway sobre una restauración de la base de datos.
+- En `dockerhub`, configura `DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN` como secretos.
+- En `production`, configura las variables `AWS_ROLE_ARN`, `EC2_INSTANCE_ID` y `EC2_DEPLOY_ENABLED`. Limita el entorno a `main` y exige la aprobación de un revisor. **Mantén `EC2_DEPLOY_ENABLED=false` hasta que el despliegue esté autorizado.** Este control se aplica al paso de EC2. El modo `deploy` puede publicar la imagen antes de llegar a ese control.
+- El job obtiene credenciales temporales mediante GitHub OIDC y usa Systems Manager (SSM) en `us-east-2`. El rol debe confiar en el contexto OIDC de `production` y permitir `ssm:SendCommand` con `AWS-RunShellScript` sobre la instancia indicada, además de `ssm:GetCommandInvocation` para consultar el resultado.
+
+### Verificaciones antes de desplegar
+
+1. Confirma que la instancia aparece en línea en SSM y que el usuario `ubuntu` puede ejecutar Docker y Docker Compose en `/home/ubuntu/despliegue`. Comprueba también la disponibilidad de `jq`, `curl` y `flock`.
+2. Guarda el Compose y la referencia de imagen anteriores. Verifica un respaldo de PostgreSQL y ensaya la compatibilidad de Flyway sobre una restauración aislada.
+3. Instala en `/home/ubuntu/despliegue` el `docker-compose.aws.yml` exacto del commit aprobado, conservando el `.env` privado del servidor. El workflow compara el SHA-256 del archivo, verifica el puerto 8080 y exige que PostgreSQL esté saludable antes de actualizar el backend.
 
 Cuando Compose y Actuator confirman que el backend está saludable, el script reemplaza de forma atómica `.inventario-image.env`. Este archivo guarda el último digest confirmado como `DOCKER_IMAGE=<imagen@sha256:digest>`. Después del primer despliegue saludable, consulta el estado del proyecto en EC2 con este comando:
 
