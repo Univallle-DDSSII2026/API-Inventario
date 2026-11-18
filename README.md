@@ -136,3 +136,29 @@ Reporte de cobertura: `build/reports/jacoco/test/html/index.html`
 
 El CI exige una cobertura de líneas de al menos 80 %.
 
+## Despliegue continuo en EC2
+
+El workflow se ejecuta manualmente sobre `main`. Elige uno de estos modos:
+
+- `build` (predeterminado) valida Compose y Bash y construye la imagen localmente en el runner.
+- `publish` construye y publica la imagen en Docker Hub con el SHA completo del commit como etiqueta.
+- `deploy` construye y publica la imagen. Después intenta actualizar solo el backend de EC2 usando el digest SHA-256 de esa imagen.
+
+En GitHub, configura `DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN` como secretos del entorno `dockerhub`. En el entorno `production`, configura los secretos `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` y `EC2_KNOWN_HOSTS`. Limita `production` a `main` y exige la aprobación de un revisor antes de habilitar el despliegue con `EC2_DEPLOY_ENABLED=true`.
+
+Antes de ejecutar `deploy`, guarda el Compose y la referencia de imagen anteriores. Instala en `~/despliegue` el `docker-compose.aws.yml` exacto del commit aprobado y comprueba la compatibilidad de Flyway sobre una restauración de la base de datos.
+
+Cuando Compose y Actuator confirman que el backend está saludable, el script reemplaza de forma atómica `.inventario-image.env`. Este archivo guarda el último digest confirmado como `DOCKER_IMAGE=<imagen@sha256:digest>`. Después del primer despliegue saludable, consulta el estado del proyecto en EC2 con este comando:
+
+```bash
+cd ~/despliegue
+env -u DOCKER_IMAGE docker compose --env-file .env --env-file .inventario-image.env -f docker-compose.aws.yml ps
+```
+
+`.inventario-image.env` tiene prioridad sobre `.env`. `env -u DOCKER_IMAGE` evita que una variable exportada en la sesión tenga prioridad sobre ambos archivos. Si el intento falla después de recrear el backend, el archivo conserva el digest anterior. La recuperación del contenedor es manual y requiere una versión de Compose y una imagen compatibles con la base de datos.
+
+### Activación futura desde `main`
+
+1. Tras aprobar el ensayo manual, añade el evento `push` con `branches: [main]` y conserva `workflow_dispatch`.
+2. Usa el modo `deploy` para los eventos `push` y `inputs.mode` para las ejecuciones manuales. Aplica ese modo al entorno de construcción, al inicio de sesión en Docker Hub, a la publicación y a la condición del job de despliegue.
+3. Mantén la aprobación de `production`, la variable `EC2_DEPLOY_ENABLED` y las comprobaciones de Compose y salud. Hasta automatizar la entrega de Compose, instala en EC2 la versión exacta cada vez que cambie ese archivo, antes de aprobar el job de producción.

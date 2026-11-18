@@ -1,0 +1,156 @@
+name: CD — Docker Hub y EC2
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Modo de ejecución
+        type: choice
+        options: [build, publish, deploy]
+        default: build
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inventario-cd
+  cancel-in-progress: false
+
+env:
+  IMAGE: manumorita/api-inventario
+  REMOTE_SCRIPT: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    image=${1:?Falta la referencia de imagen}
+    compose_sha=${2:?Falta la suma SHA-256 de Compose}
+    [[ "$image" =~ ^manumorita/api-inventario@sha256:[a-f0-9]{64}$ ]]
+    [[ "$compose_sha" =~ ^[a-f0-9]{64}$ ]]
+
+    cd "$HOME/despliegue"
+    exec 9>.inventario-deploy.lock
+    flock -n 9 || { echo 'Hay otro despliegue en curso.' >&2; exit 1; }
+
+    compose_file=docker-compose.aws.yml
+    printf '%s  %s\n' "$compose_sha" "$compose_file" | sha256sum -c -
+    export DOCKER_IMAGE="$image"
+    compose=(docker compose --env-file .env -f "$compose_file")
+
+    # Valida el puerto sin mostrar credenciales.
+    "${compose[@]}" config --format json | jq -e '
+        .services.backend.ports | any(.published == "8080" and .target == 8080)
+    ' >/dev/null
+    db_id=$("${compose[@]}" ps -q db)
+    if [[ -z "$db_id" ]] || [[ "$(docker inspect --format '{{.State.Health.Status}}' "$db_id")" != healthy ]]; then
+        echo 'PostgreSQL debe estar en ejecución y saludable antes de actualizar.' >&2
+        exit 1
+    fi
+
+    backend_id=$("${compose[@]}" ps --all --quiet backend)
+    if [[ -n "$backend_id" ]]; then
+        docker inspect --format 'Backend anterior: {{.Config.Image}} ({{.Image}})' "$backend_id"
+    fi
+    df -h
+    docker system df
+
+    # Prepara el digest que se guardará después del healthcheck.
+    umask 077
+    temp_env=$(mktemp .inventario-image.XXXXXXXX)
+    trap 'rm -f "$temp_env"' EXIT
+    printf 'DOCKER_IMAGE=%s\n' "$image" > "$temp_env"
+
+    "${compose[@]}" pull backend
+    "${compose[@]}" up -d --no-deps --no-build --pull never --wait --wait-timeout 180 backend
+    curl --fail --silent --show-error --max-time 5 http://127.0.0.1:8080/actuator/health |
+        jq -e '.status == "UP"' >/dev/null
+
+    mv -f -- "$temp_env" .inventario-image.env
+    printf 'Backend saludable: %s\n' "$image"
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: ${{ inputs.mode == 'build' && 'cd-validation' || 'dockerhub' }}
+    outputs:
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Validar Compose y Bash
+        run: |
+          docker compose --env-file .env.example -f docker-compose.aws.yml config --no-env-resolution --quiet
+          bash -n <<< "$REMOTE_SCRIPT"
+
+      - name: Autenticar en Docker Hub
+        if: inputs.mode != 'build'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+
+      - name: Construir y publicar según el modo
+        id: image
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          args=(--load)
+          if [[ "$MODE" != build ]]; then
+            args=(--push)
+          fi
+          metadata="$RUNNER_TEMP/inventario-image.json"
+          docker buildx build "${args[@]}" --platform linux/amd64 \
+            --tag "$IMAGE:$GITHUB_SHA" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --metadata-file "$metadata" .
+          if [[ "$MODE" != build ]]; then
+            digest=$(jq -er '."containerimage.digest" | select(test("^sha256:[0-9a-f]{64}$"))' "$metadata")
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+            printf 'Imagen publicada: %s:%s (%s)\n' "$IMAGE" "$GITHUB_SHA" "$digest"
+          fi
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'deploy'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Verificar que producción esté habilitada
+        env:
+          ENABLED: ${{ vars.EC2_DEPLOY_ENABLED }}
+        run: |
+          if [[ "$ENABLED" != true ]]; then
+            echo "::error::El entorno production debe habilitar EC2_DEPLOY_ENABLED para desplegar."
+            exit 1
+          fi
+
+      - name: Actualizar el backend por SSH
+        shell: bash
+        env:
+          DIGEST: ${{ needs.build.outputs.digest }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+        run: |
+          release_image="$IMAGE@$DIGEST"
+          [[ "$release_image" =~ ^manumorita/api-inventario@sha256:[a-f0-9]{64}$ ]]
+          umask 077
+          ssh_dir=$(mktemp -d)
+          trap 'rm -f "$ssh_dir/key" "$ssh_dir/known_hosts"; rmdir "$ssh_dir"' EXIT
+          printf '%s\n' "$EC2_SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$EC2_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          compose_sha=$(git show HEAD:docker-compose.aws.yml | sha256sum | cut -d ' ' -f 1)
+          [[ "$compose_sha" =~ ^[a-f0-9]{64}$ ]]
+          ssh -T -i "$ssh_dir/key" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            -o ConnectTimeout=15 -l "$EC2_USER" -- "$EC2_HOST" \
+            "bash -s -- '$release_image' '$compose_sha'" <<< "$REMOTE_SCRIPT"

@@ -17,5 +17,5 @@ USER inventario
 # «Fecha actual» de Bogotá en las validaciones; la JVM usa como máximo el 75 % de la memoria del contenedor.
 ENV JAVA_TOOL_OPTIONS="-Duser.timezone=America/Bogota -XX:MaxRAMPercentage=75"
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD wget -qO- "http://localhost:${SERVER_PORT}/actuator/health" > /dev/null || exit 1
+    CMD wget -qO- "http://127.0.0.1:${SERVER_PORT}/actuator/health" > /dev/null || exit 1
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
