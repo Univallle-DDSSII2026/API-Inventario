@@ -1,7 +1,4 @@
 name: CI — Integración Continua
-
-# Estructura de la guía del dojo (Paso 13): dos jobs, "Build, Test y Calidad" y "SonarCloud Analysis".
-# También corre en los PR hacia main, para que el ruleset de main pueda exigir los mismos checks.
 on:
   pull_request:
     branches: [ develop ]
@@ -66,7 +63,7 @@ jobs:
       - name: Checkout del código
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # SonarCloud necesita el historial completo para saber qué código es nuevo
+          fetch-depth: 0
 
       - name: Configurar JDK 21
         uses: actions/setup-java@v4
@@ -78,7 +75,6 @@ jobs:
       - name: Dar permisos al Gradle wrapper
         run: chmod +x gradlew
 
-      # Se corren también los de integración: sin ellos Sonar mostraría menos cobertura que JaCoCo.
       - name: Generar reporte JaCoCo para SonarCloud
         run: ./gradlew test integrationTest jacocoTestReport
 
