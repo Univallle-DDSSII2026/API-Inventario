@@ -120,7 +120,7 @@ sonar {
         property 'sonar.organization', 'univallle-ddssii2026'
         property 'sonar.host.url', 'https://sonarcloud.io'
         property 'sonar.coverage.jacoco.xmlReportPaths',
-                layout.buildDirectory.file('reports/jacoco/jacocoTestReport/jacocoTestReport.xml').get().asFile.path
+                layout.buildDirectory.file('reports/jacoco/test/jacocoTestReport.xml').get().asFile.path
         property 'sonar.coverage.exclusions', '**/InventarioApplication.java'
         property 'sonar.java.source', '21'
     }
