@@ -1,66 +1,164 @@
-# API de Inventario — ejemplo transaccional (Equipo 5)
+\# API de Inventario (Equipo 5)
 
-Ejemplo de punta a punta del proceso crítico del DAS (Figura 6): la **salida por pedido de productos terminados** (HU_CUTIT_04) con la **notificación de stock bajo** (HU_CUTIT_17). Recorre las capas del DAS:
 
-```
-HTTP → RateLimitFilter → SecurityFilter (View, API Key) → MovimientoController (View) → SalidaPedidoRequest (DTO) → MovimientoService (Logic, @Transactional)
-     → ValidadorSalida (Logic) → ArticuloRepository / MovimientoRepository (Data Access) → PostgreSQL
-     → respuesta 201/422 → después del commit: NotificacionesClient (Integration) → API de Notificaciones
-```
 
-Qué demuestra:
+Arquetipo básico del Sprint 0 — Desarrollo de Software II, Universidad del Valle.
 
-- **Una transacción por solicitud**: se registran las líneas válidas y se rechazan solo las inválidas; si todas fallan, no se guarda nada (422).
-- **Bloqueo de filas** (`SELECT … FOR UPDATE`): diez salidas simultáneas nunca dejan existencias negativas.
-- **Seguridad con API Key por sistema cliente**: el `SecurityFilter` valida el encabezado `X-API-Key` y asigna el rol (FABRICACION, NOTIFICACIONES o EQUIPO); sin clave o con una clave inválida responde 401, y si el rol no tiene permiso, 403 (`@PreAuthorize`).
-- **Rate limit**: el `RateLimitFilter` (Bucket4j) responde 429 si un cliente pasa de `RATE_LIMIT_PER_MINUTE` peticiones por minuto.
-- **Outbox**: la notificación se guarda en la misma transacción y se envía después del commit; si la API de Notificaciones falla, la salida no se revierte.
 
-## Requisitos
 
-Docker Desktop 4.x (Docker Compose 2.20 o superior) y, para correr las pruebas sin Docker Compose, JDK 21.
+Es una versión inicial que recorre todas las capas con un único caso: \*\*consultar un artículo por su código\*\*.
 
-## Ejecutar
+
+
+\## Tecnologías
+
+
+
+\- Java 21 y Spring Boot 4.1.2
+
+\- Spring Data JPA (Hibernate) y PostgreSQL 17
+
+\- Flyway (migraciones de la base de datos)
+
+\- Gradle (wrapper incluido)
+
+\- Pruebas con JUnit 5 y Testcontainers
+
+\- Cobertura con JaCoCo, estilo con Checkstyle y análisis con SonarCloud
+
+
+
+\## Estructura
+
+
+
+| Capa (DAS) | Paquete | Clase |
+
+|---|---|---|
+
+| Vista | `controller` | `ArticuloController` |
+
+| Lógica | `service` | `ArticuloService` |
+
+| Acceso a datos | `repository` | `ArticuloRepository` |
+
+| Modelo | `model` | `Articulo`, `TipoArticulo` |
+
+| Transferencia | `dto` | `ArticuloDto` |
+
+| Configuración | `config` | `OpenApiConfig` |
+
+
+
+La tabla `articulo` se crea con la migración `src/main/resources/db/migration/V1\_\_esquema\_inicial.sql`
+
+y los datos de demostración con `V2\_\_datos\_demo.sql`.
+
+
+
+\## Endpoint
+
+
+
+| Método | Ruta | Respuesta |
+
+|---|---|---|
+
+| GET | `/inventario/articulos/{codigo}` | `200` con el artículo, o `404` si no existe |
+
+
+
+Ejemplos: `PT-00001` devuelve 200 y `PT-99999` devuelve 404.
+
+
+
+Documentación interactiva (Swagger): http://localhost:8080/swagger-ui.html
+
+
+
+\## Ejecutar con Docker
+
+
 
 ```bash
+
 cp .env.example .env
+
 docker compose up --build
+
 ```
 
-Abra <http://localhost:8080/swagger-ui.html>, haga clic en **Authorize**, escriba la clave del Equipo 4 que puso en `API_KEYS` (en el `.env.example` es `clave-equipo-cambiar`) y ejecute `POST /inventario/salidas/pedidos/productos-terminados` con la fecha de hoy:
 
-```json
-{
-  "referenciaPedido": "PED-2026-0042",
-  "fecha": "07/11/2026",
-  "lineas": [
-    { "codigoArticulo": "PT-00001", "cantidad": 6 },
-    { "codigoArticulo": "PT-00099", "cantidad": 1 }
-  ]
-}
-```
 
-Respuesta 201: la línea 1 se registra y la 2 se rechaza («no existe un artículo con el código PT-00099»). PT-00001 (Cadena Ripit 5000) baja de 10 a 4, por debajo de su umbral de 5, y se envía la notificación. Para verlo en la base de datos:
+En Windows (PowerShell): `Copy-Item .env.example .env`.
+
+
+
+Para cambiar el esquema, añade una nueva migración versionada de Flyway (por ejemplo, `V3__cambio_de_esquema.sql`). Conserva las migraciones ya aplicadas y el volumen de PostgreSQL para preservar los datos.
+
+
+
+\## Pruebas y cobertura
+
+
+
+Se necesita Docker en ejecución, porque las pruebas usan Testcontainers con PostgreSQL.
+
+
 
 ```bash
-docker compose exec db psql -U inventario_app -d inventario -c "SELECT codigo, existencias FROM articulo;"
-docker compose exec db psql -U inventario_app -d inventario -c "SELECT id, estado, fecha_envio FROM notificacion;"
+
+./gradlew test
+
+./gradlew integrationTest
+
+./gradlew jacocoTestReport
+
 ```
 
-Artículos de demostración: PT-00001 (10 existencias, umbral 5), PT-00002 (3, umbral 1) y MP-00001 (materia prima, sirve para ver el rechazo «no es un producto terminado»).
 
-Sin la clave, la respuesta es 401; con la clave de Fabricación, 403. La documentación (`/swagger-ui.html`, `/v3/api-docs`) y `/actuator/health` no piden clave.
 
-## Pruebas y cobertura
+En Windows (PowerShell) use `.\\gradlew.bat` en lugar de `./gradlew`.
+
+
+
+Reporte de cobertura: `build/reports/jacoco/test/html/index.html`
+
+
+
+El CI exige una cobertura de líneas de al menos 80 %.
+
+## Despliegue continuo en EC2
+
+El workflow se ejecuta manualmente sobre `main`. Elige uno de estos modos:
+
+- `build` (predeterminado) usa el entorno `cd-validation`, valida Compose y Bash y construye la imagen en el runner.
+- `publish` usa el entorno `dockerhub`, construye la imagen y la publica con el SHA completo del commit como etiqueta.
+- `deploy` primero construye y publica como en `publish`. Luego, con la aprobación de `production`, actualiza solo el backend de EC2 usando el digest SHA-256 publicado.
+
+### Entornos de GitHub
+
+- En `dockerhub`, configura `DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN` como secretos.
+- En `production`, configura las variables `AWS_ROLE_ARN`, `EC2_INSTANCE_ID` y `EC2_DEPLOY_ENABLED`. Limita el entorno a `main` y exige la aprobación de un revisor. **Mantén `EC2_DEPLOY_ENABLED=false` hasta que el despliegue esté autorizado.** Este control se aplica al paso de EC2. El modo `deploy` puede publicar la imagen antes de llegar a ese control.
+- El job obtiene credenciales temporales mediante GitHub OIDC y usa Systems Manager (SSM) en `us-east-2`. El rol debe confiar en el contexto OIDC de `production` y permitir `ssm:SendCommand` con `AWS-RunShellScript` sobre la instancia indicada, además de `ssm:GetCommandInvocation` para consultar el resultado.
+
+### Verificaciones antes de desplegar
+
+1. Confirma que la instancia aparece en línea en SSM y que el usuario `ubuntu` puede ejecutar Docker y Docker Compose en `/home/ubuntu/despliegue`. Comprueba también la disponibilidad de `jq`, `curl` y `flock`.
+2. Guarda el Compose y la referencia de imagen anteriores. Verifica un respaldo de PostgreSQL y ensaya la compatibilidad de Flyway sobre una restauración aislada.
+3. Instala en `/home/ubuntu/despliegue` el `docker-compose.aws.yml` exacto del commit aprobado, conservando el `.env` privado del servidor. El workflow compara el SHA-256 del archivo, verifica el puerto 8080 y exige que PostgreSQL esté saludable antes de actualizar el backend.
+
+Cuando Compose y Actuator confirman que el backend está saludable, el script reemplaza de forma atómica `.inventario-image.env`. Este archivo guarda el último digest confirmado como `DOCKER_IMAGE=<imagen@sha256:digest>`. Después del primer despliegue saludable, consulta el estado del proyecto en EC2 con este comando:
 
 ```bash
-./gradlew test                      # unitarias (validador y servicio)
-./gradlew integrationTest           # integración con PostgreSQL real (requiere Docker)
-./gradlew jacocoTestReport jacocoTestCoverageVerification   # reporte y regla >= 80 %
+cd ~/despliegue
+env -u DOCKER_IMAGE docker compose --env-file .env --env-file .inventario-image.env -f docker-compose.aws.yml ps
 ```
 
-Reporte: `build/reports/jacoco/jacocoTestReport/html/index.html`. En Windows use `gradlew.bat`.
+`.inventario-image.env` tiene prioridad sobre `.env`. `env -u DOCKER_IMAGE` evita que una variable exportada en la sesión tenga prioridad sobre ambos archivos. Si el intento falla después de recrear el backend, el archivo conserva el digest anterior. La recuperación del contenedor es manual y requiere una versión de Compose y una imagen compatibles con la base de datos.
 
-## Qué queda fuera de este ejemplo
+### Activación futura desde `main`
 
-El monitoreo con Prometheus y Grafana (se agrega después, según indique el profesor), reintentos programados de notificaciones, validación de los 30 días de antigüedad de la fecha y las demás historias de usuario. Están en el DAS y se agregan sobre esta misma estructura.
+1. Tras aprobar el ensayo manual, añade el evento `push` con `branches: [main]` y conserva `workflow_dispatch`.
+2. Usa el modo `deploy` para los eventos `push` y `inputs.mode` para las ejecuciones manuales. Aplica ese modo al entorno de construcción, al inicio de sesión en Docker Hub, a la publicación y a la condición del job de despliegue.
+3. Mantén la aprobación de `production`, la variable `EC2_DEPLOY_ENABLED` y las comprobaciones de Compose y salud. Hasta automatizar la entrega de Compose, instala en EC2 la versión exacta cada vez que cambie ese archivo, antes de aprobar el job de producción.
