@@ -84,6 +84,7 @@ jobs:
 
       - name: Validar Compose y Bash
         run: |
+          cp .env.example .env
           docker compose --env-file .env.example -f docker-compose.aws.yml config --no-env-resolution --quiet
           bash -n <<< "$REMOTE_SCRIPT"
 
