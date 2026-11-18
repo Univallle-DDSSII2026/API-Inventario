@@ -94,15 +94,7 @@ En Windows (PowerShell): `Copy-Item .env.example .env`.
 
 
 
-Si cambia el esquema de la base de datos (por ejemplo, la migración V1), borre el volumen antes de volver a levantar:
-
-
-
-```bash
-
-docker compose down -v --remove-orphans
-
-```
+Para cambiar el esquema, añade una nueva migración versionada de Flyway (por ejemplo, `V3__cambio_de_esquema.sql`). Conserva las migraciones ya aplicadas y el volumen de PostgreSQL para preservar los datos.
 
 
 
