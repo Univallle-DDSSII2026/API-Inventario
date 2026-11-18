@@ -16,15 +16,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    mem_limit: 512m
-    networks:
-      - inventario-red
-
-  wiremock:
-    image: wiremock/wiremock:3.13.2
-    restart: unless-stopped
-    volumes:
-      - ./wiremock:/home/wiremock
     mem_limit: 256m
     networks:
       - inventario-red
@@ -41,7 +32,7 @@ services:
         condition: service_healthy
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
-    mem_limit: 768m
+    mem_limit: 512m
     networks:
       - inventario-red
 
