@@ -3,6 +3,8 @@ package co.edu.univalle.inventario.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import co.edu.univalle.inventario.dto.ArticuloDto;
+import co.edu.univalle.inventario.dto.RegistrarArticuloTercerosDto;
+import co.edu.univalle.inventario.dto.RegistroArticuloDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -44,5 +46,19 @@ class ArticuloControllerTest {
     void deberia_responder_404_si_el_articulo_no_existe() {
         // Act & Assert
         assertThat(articuloController.consultarArticulo("PT-99999").getStatusCode().value()).isEqualTo(404);
+    }
+
+    @Test
+    void deberia_responder_201_con_el_mensaje_de_confirmacion_al_registrar_un_articulo_de_terceros() {
+        // Act
+        ResponseEntity<RegistroArticuloDto> respuesta =
+                articuloController.registrar(new RegistrarArticuloTercerosDto("Kit de cadena Ripit", null));
+
+        // Assert
+        assertThat(respuesta.getStatusCode().value()).isEqualTo(201);
+        assertThat(respuesta.getBody()).isNotNull();
+        assertThat(respuesta.getBody().mensaje())
+                .startsWith("Se registró el artículo AT-")
+                .endsWith(" – Kit de cadena Ripit con Tipo Artículo de terceros");
     }
 }
