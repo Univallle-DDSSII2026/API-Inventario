@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -36,6 +37,10 @@ public class Articulo {
     @Column(nullable = false, length = 100)
     private String nombre;
 
+    @Size(max = 500)
+    @Column(length = 500)
+    private String descripcion;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -48,4 +53,22 @@ public class Articulo {
     @NotNull
     @Column(name = "umbral_minimo", nullable = false, precision = 14, scale = 2)
     private BigDecimal umbralMinimo;
+
+    /**
+     * Crea un artículo de terceros nuevo: Tipo "Artículo de terceros", Existencias 0 y Umbral mínimo 0 (HU_CUTIT_14).
+     * @param codigo código generado (por ejemplo, AT-00001)
+     * @param nombre nombre ya normalizado
+     * @param descripcion descripción ya normalizada, o null si no se envió
+     * @return el artículo listo para guardar
+     */
+    public static Articulo deTerceros(String codigo, String nombre, String descripcion) {
+        Articulo articulo = new Articulo();
+        articulo.codigo = codigo;
+        articulo.nombre = nombre;
+        articulo.descripcion = descripcion;
+        articulo.tipo = TipoArticulo.ARTICULO_TERCEROS;
+        articulo.existencias = BigDecimal.ZERO;
+        articulo.umbralMinimo = BigDecimal.ZERO;
+        return articulo;
+    }
 }

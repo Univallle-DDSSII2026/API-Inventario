@@ -15,4 +15,13 @@ public interface ArticuloRepository extends JpaRepository<Articulo, Long> {
      * @return el artículo, o vacío si no existe
      */
     Optional<Articulo> findByCodigo(String codigo);
+
+    /**
+     * Indica si ya existe un artículo de cualquier tipo con ese nombre, sin importar mayúsculas.
+     * @param nombre nombre ya normalizado
+     * @return true si el nombre ya está en uso
+     */
+    boolean existsByNombreIgnoreCase(String nombre);
+
+
 }
