@@ -1,6 +1,8 @@
 package co.edu.univalle.inventario.service;
 
+import co.edu.univalle.inventario.command.DefinirUmbralCommand;
 import co.edu.univalle.inventario.command.RegistrarArticuloTercerosCommand;
+import co.edu.univalle.inventario.exception.ArticuloNoEncontradoException;
 import co.edu.univalle.inventario.exception.NombreDuplicadoException;
 import co.edu.univalle.inventario.model.Articulo;
 import co.edu.univalle.inventario.model.Consecutivo;
@@ -57,6 +59,25 @@ public class ArticuloService {
     @Transactional
     public Articulo registrarProductoTerminado(RegistrarArticuloTercerosCommand command) {
         return guardarNuevo(TipoArticulo.PRODUCTO_TERMINADO, command);
+    }
+
+    /**
+     * Define el Umbral mínimo de un artículo (HU_CUTIT_06): valida los campos obligatorios, el formato del código,
+     * que el artículo exista y el valor del umbral según su tipo y unidad de medida; luego reemplaza el umbral.
+     * @param command código de la ruta y Umbral mínimo recibido
+     * @return el artículo con el nuevo Umbral mínimo
+     * @throws co.edu.univalle.inventario.exception.SolicitudInvalidaException si algún criterio 2 a 4 no se cumple
+     * @throws ArticuloNoEncontradoException si no existe un artículo con ese código
+     */
+    @Transactional
+    public Articulo definirUmbral(DefinirUmbralCommand command) {
+        String codigo = command.codigo() == null ? null : command.codigo().strip();
+        articuloValidator.validarObligatorios(codigo, command.umbralMinimo());
+        articuloValidator.validarFormatoCodigo(codigo);
+        Articulo articulo = articuloRepository.findByCodigo(codigo)
+                .orElseThrow(() -> new ArticuloNoEncontradoException(codigo));
+        articulo.definirUmbral(articuloValidator.validarUmbral(articulo, command.umbralMinimo()));
+        return articuloRepository.saveAndFlush(articulo);
     }
 
     private Articulo guardarNuevo(TipoArticulo tipo, RegistrarArticuloTercerosCommand command) {

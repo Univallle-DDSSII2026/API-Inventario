@@ -17,6 +17,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import co.edu.univalle.inventario.command.DefinirUmbralCommand;
+import co.edu.univalle.inventario.dto.DefinirUmbralDto;
+import co.edu.univalle.inventario.dto.UmbralActualizadoDto;
+import org.springframework.web.bind.annotation.PutMapping;
 
 /**
  * Controller de MVC (View Layer): recibe la petición y delega en el Service.
@@ -69,5 +73,21 @@ public class ArticuloController {
         Articulo articulo = articuloService.registrarProductoTerminado(
                 new RegistrarArticuloTercerosCommand(dto.nombre(), dto.descripcion()));
         return ResponseEntity.status(HttpStatus.CREATED).body(RegistroArticuloDto.de(articulo));
+    }
+
+    
+    /**
+     * Define el Umbral mínimo de un artículo (HU_CUTIT_06). Lo consume el sistema de Fabricación.
+     * @param codigo código del artículo (por ejemplo, PT-00001)
+     * @param dto cuerpo con el Umbral mínimo; si no se envía cuerpo se responde que el campo es obligatorio
+     * @return 200 con el mensaje de confirmación y el artículo actualizado
+     */
+    @PutMapping("/articulos/{codigo}/umbral")
+    @Operation(summary = "Definir el umbral mínimo de un artículo")
+    public ResponseEntity<UmbralActualizadoDto> definirUmbral(@PathVariable("codigo") String codigo,
+            @RequestBody(required = false) DefinirUmbralDto dto) {
+        String umbralMinimo = dto == null ? null : dto.umbralMinimo();
+        Articulo articulo = articuloService.definirUmbral(new DefinirUmbralCommand(codigo, umbralMinimo));
+        return ResponseEntity.ok(UmbralActualizadoDto.de(articulo));
     }
 }
