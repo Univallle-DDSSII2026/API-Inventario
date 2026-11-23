@@ -55,18 +55,19 @@ public class Articulo {
     private BigDecimal umbralMinimo;
 
     /**
-     * Crea un artículo de terceros nuevo: Tipo "Artículo de terceros", Existencias 0 y Umbral mínimo 0 (HU_CUTIT_14).
-     * @param codigo código generado (por ejemplo, AT-00001)
+     * Crea un artículo nuevo del tipo indicado, con Existencias 0 y Umbral mínimo 0 (HU_CUTIT_01 y HU_CUTIT_14).
+     * @param tipo tipo del artículo
+     * @param codigo código generado (por ejemplo, PT-00003)
      * @param nombre nombre ya normalizado
      * @param descripcion descripción ya normalizada, o null si no se envió
      * @return el artículo listo para guardar
      */
-    public static Articulo deTerceros(String codigo, String nombre, String descripcion) {
+    public static Articulo nuevo(TipoArticulo tipo, String codigo, String nombre, String descripcion) {
         Articulo articulo = new Articulo();
         articulo.codigo = codigo;
         articulo.nombre = nombre;
         articulo.descripcion = descripcion;
-        articulo.tipo = TipoArticulo.ARTICULO_TERCEROS;
+        articulo.tipo = tipo;
         articulo.existencias = BigDecimal.ZERO;
         articulo.umbralMinimo = BigDecimal.ZERO;
         return articulo;

@@ -4,6 +4,7 @@ import co.edu.univalle.inventario.command.RegistrarArticuloTercerosCommand;
 import co.edu.univalle.inventario.exception.NombreDuplicadoException;
 import co.edu.univalle.inventario.model.Articulo;
 import co.edu.univalle.inventario.model.Consecutivo;
+import co.edu.univalle.inventario.model.TipoArticulo;
 import co.edu.univalle.inventario.repository.ArticuloRepository;
 import co.edu.univalle.inventario.repository.ConsecutivoRepository;
 import co.edu.univalle.inventario.validator.ArticuloValidator;
@@ -19,8 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ArticuloService {
-
-    private static final String PREFIJO_ARTICULO_TERCEROS = "AT";
 
     private final ArticuloRepository articuloRepository;
     private final ConsecutivoRepository consecutivoRepository;
@@ -45,13 +44,30 @@ public class ArticuloService {
      */
     @Transactional
     public Articulo registrar(RegistrarArticuloTercerosCommand command) {
+        return guardarNuevo(TipoArticulo.ARTICULO_TERCEROS, command);
+    }
+
+    /**
+     * Registra un producto terminado (HU_CUTIT_01): mismas reglas que el artículo de terceros, con el consecutivo del
+     * prefijo PT y Tipo "Producto terminado".
+     * @param command nombre y descripción ya ajustados
+     * @return el artículo guardado, con su código
+     * @throws NombreDuplicadoException si ya existe un artículo con ese nombre
+     */
+    @Transactional
+    public Articulo registrarProductoTerminado(RegistrarArticuloTercerosCommand command) {
+        return guardarNuevo(TipoArticulo.PRODUCTO_TERMINADO, command);
+    }
+
+    private Articulo guardarNuevo(TipoArticulo tipo, RegistrarArticuloTercerosCommand command) {
         articuloValidator.validarNombre(command.nombre());
 
-        Consecutivo consecutivo = consecutivoRepository.findByPrefijo(PREFIJO_ARTICULO_TERCEROS)
-                .orElseThrow(() -> new IllegalStateException("No existe el consecutivo del prefijo AT"));
+        String prefijo = tipo.getPrefijo();
+        Consecutivo consecutivo = consecutivoRepository.findByPrefijo(prefijo)
+                .orElseThrow(() -> new IllegalStateException("No existe el consecutivo del prefijo " + prefijo));
         String codigo = consecutivo.siguiente();
 
-        Articulo articulo = Articulo.deTerceros(codigo, command.nombre(), descripcionOpcional(command.descripcion()));
+        Articulo articulo = Articulo.nuevo(tipo, codigo, command.nombre(), descripcionOpcional(command.descripcion()));
         try {
             return articuloRepository.saveAndFlush(articulo);
         } catch (DataIntegrityViolationException excepcion) {
