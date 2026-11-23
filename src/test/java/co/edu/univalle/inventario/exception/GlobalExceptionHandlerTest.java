@@ -40,4 +40,30 @@ class GlobalExceptionHandlerTest {
         assertThat(respuesta.getBody()).isNotNull();
         assertThat(respuesta.getBody().mensaje()).isEqualTo("La solicitud no se pudo procesar");
     }
+
+    
+    @Test
+    void deberia_responder_400_con_el_mensaje_exacto_de_la_solicitud_invalida() {
+        // Act
+        ResponseEntity<ErrorResponse> respuesta = handler.manejarSolicitudInvalida(
+                new SolicitudInvalidaException("El campo Umbral mínimo es obligatorio"));
+
+        // Assert
+        assertThat(respuesta.getStatusCode().value()).isEqualTo(400);
+        assertThat(respuesta.getBody()).isNotNull();
+        assertThat(respuesta.getBody().codigo()).isEqualTo(400);
+        assertThat(respuesta.getBody().mensaje()).isEqualTo("El campo Umbral mínimo es obligatorio");
+    }
+
+    @Test
+    void deberia_responder_404_si_no_existe_un_articulo_con_ese_codigo() {
+        // Act
+        ResponseEntity<ErrorResponse> respuesta =
+                handler.manejarArticuloNoEncontrado(new ArticuloNoEncontradoException("PT-99999"));
+
+        // Assert
+        assertThat(respuesta.getStatusCode().value()).isEqualTo(404);
+        assertThat(respuesta.getBody()).isNotNull();
+        assertThat(respuesta.getBody().mensaje()).isEqualTo("No existe un artículo con el código PT-99999");
+    }
 }

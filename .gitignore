@@ -20,6 +20,7 @@ build/
 .project
 .settings/
 out/
+bin/
 
 # Variables de entorno
 .env
@@ -43,5 +44,5 @@ Thumbs.db
 *.pem
 *.key
 
-# Imágenes Docker exportadas
+# Imï¿½genes Docker exportadas
 *.tar

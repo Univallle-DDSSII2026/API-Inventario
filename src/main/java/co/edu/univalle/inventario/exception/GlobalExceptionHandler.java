@@ -52,6 +52,26 @@ public class GlobalExceptionHandler {
         return responder(HttpStatus.CONFLICT, excepcion.getMessage());
     }
 
+        /**
+     * Responde 400 con el mensaje exacto cuando la solicitud incumple una validación (criterios 2 a 4 de HU_CUTIT_06).
+     * @param excepcion validación incumplida
+     * @return respuesta 400
+     */
+    @ExceptionHandler(SolicitudInvalidaException.class)
+    public ResponseEntity<ErrorResponse> manejarSolicitudInvalida(SolicitudInvalidaException excepcion) {
+        return responder(HttpStatus.BAD_REQUEST, excepcion.getMessage());
+    }
+
+    /**
+     * Responde 404 cuando no existe un artículo con ese código (criterio 3 de HU_CUTIT_06).
+     * @param excepcion artículo inexistente
+     * @return respuesta 404
+     */
+    @ExceptionHandler(ArticuloNoEncontradoException.class)
+    public ResponseEntity<ErrorResponse> manejarArticuloNoEncontrado(ArticuloNoEncontradoException excepcion) {
+        return responder(HttpStatus.NOT_FOUND, excepcion.getMessage());
+    }
+
     /**
      * Responde con el estado de Spring o 500 sin exponer detalles internos.
      * @param excepcion error no controlado
