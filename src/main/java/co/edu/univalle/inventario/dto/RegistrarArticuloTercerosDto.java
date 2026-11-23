@@ -6,9 +6,10 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Cuerpo de {@code POST /inventario/articulos-terceros} (View Layer, HU_CUTIT_14). Las restricciones de Bean Validation
- * se aplican sobre el texto ya ajustado: sin espacios al inicio ni al final y con los espacios repetidos reducidos
- * a uno.
+ * Cuerpo de {@code POST /inventario/articulos-terceros} (View Layer, HU_CUTIT_14). También es el cuerpo de
+ * {@code POST /inventario/productos-terminados} (HU_CUTIT_01), que tiene los mismos campos y reglas. Las
+ * restricciones de Bean Validation se aplican sobre el texto ya ajustado: sin espacios al inicio ni al final y con
+ * los espacios repetidos reducidos a uno.
  *
  * @param nombre nombre del artículo (obligatorio, de 3 a 100 caracteres)
  * @param descripcion descripción del artículo (opcional, hasta 500 caracteres)

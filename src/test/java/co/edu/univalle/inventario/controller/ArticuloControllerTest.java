@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import co.edu.univalle.inventario.dto.ArticuloDto;
 import co.edu.univalle.inventario.dto.RegistrarArticuloTercerosDto;
 import co.edu.univalle.inventario.dto.RegistroArticuloDto;
+import co.edu.univalle.inventario.model.TipoArticulo;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -60,5 +61,21 @@ class ArticuloControllerTest {
         assertThat(respuesta.getBody().mensaje())
                 .startsWith("Se registró el artículo AT-")
                 .endsWith(" – Kit de cadena Ripit con Tipo Artículo de terceros");
+    }
+
+
+    @Test
+    void deberia_responder_201_con_el_mensaje_de_confirmacion_al_registrar_un_producto_terminado() {
+        // Act
+        ResponseEntity<RegistroArticuloDto> respuesta = articuloController.registrarProductoTerminado(
+                new RegistrarArticuloTercerosDto("Cuchilla Ripit 7000", null));
+
+        // Assert
+        assertThat(respuesta.getStatusCode().value()).isEqualTo(201);
+        assertThat(respuesta.getBody()).isNotNull();
+        assertThat(respuesta.getBody().mensaje())
+                .startsWith("Se registró el artículo PT-")
+                .endsWith(" – Cuchilla Ripit 7000 con Tipo Producto terminado");
+        assertThat(respuesta.getBody().articulo().tipo()).isEqualTo(TipoArticulo.PRODUCTO_TERMINADO);
     }
 }

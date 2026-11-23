@@ -54,4 +54,20 @@ public class ArticuloController {
                 new RegistrarArticuloTercerosCommand(dto.nombre(), dto.descripcion()));
         return ResponseEntity.status(HttpStatus.CREATED).body(RegistroArticuloDto.de(articulo));
     }
+
+
+    /**
+     * Registra un producto terminado, cadena o cuchilla (HU_CUTIT_01). Usa el mismo cuerpo y las mismas validaciones
+     * que el registro de artículos de terceros.
+     * @param dto nombre y descripción del producto
+     * @return 201 con el mensaje de confirmación y el artículo creado
+     */
+    @PostMapping("/productos-terminados")
+    @Operation(summary = "Registrar un producto terminado")
+    public ResponseEntity<RegistroArticuloDto> registrarProductoTerminado(
+            @Valid @RequestBody RegistrarArticuloTercerosDto dto) {
+        Articulo articulo = articuloService.registrarProductoTerminado(
+                new RegistrarArticuloTercerosCommand(dto.nombre(), dto.descripcion()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(RegistroArticuloDto.de(articulo));
+    }
 }
