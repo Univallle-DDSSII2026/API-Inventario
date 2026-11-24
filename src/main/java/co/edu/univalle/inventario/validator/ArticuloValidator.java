@@ -5,6 +5,7 @@ import co.edu.univalle.inventario.exception.SolicitudInvalidaException;
 import co.edu.univalle.inventario.model.Articulo;
 import co.edu.univalle.inventario.repository.ArticuloRepository;
 import java.math.BigDecimal;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,7 @@ public class ArticuloValidator {
     private static final Pattern FORMATO_CODIGO = Pattern.compile("(MP|PT|AT)-[0-9]{5}");
     private static final Pattern FORMATO_NUMERO = Pattern.compile("-?[0-9]+(\\.[0-9]+)?");
     private static final int MAX_DECIMALES_MATERIA_PRIMA = 2;
+    private static final Set<String> UNIDADES_MEDIDA = Set.of("und", "g", "kg", "mL", "L", "m");
 
     private final ArticuloRepository articuloRepository;
 
@@ -90,6 +92,23 @@ public class ArticuloValidator {
         }
         return umbral;
     }
+
+    /**
+     * Criterios 6 y 7 de HU_CUTIT_11: la Unidad de medida es obligatoria y debe ser una de und, g, kg, mL, L o m,
+     * con esa escritura exacta.
+     *
+     * @param unidadMedida Unidad de medida recibida como texto
+     * @throws SolicitudInvalidaException si está vacía o no pertenece a la lista
+     */
+    public void validarUnidadMedida(String unidadMedida) {
+        if (estaVacio(unidadMedida)) {
+            throw new SolicitudInvalidaException("El campo Unidad de medida es obligatorio");
+        }
+        // Set.of(...).contains(null) lanzaría NPE, pero el null ya quedó descartado arriba.
+        if (!UNIDADES_MEDIDA.contains(unidadMedida)) {
+            throw new SolicitudInvalidaException("La Unidad de medida %s no es válida".formatted(unidadMedida));
+        }
+    }    
 
     private static boolean estaVacio(String texto) {
         return texto == null || texto.isBlank();
