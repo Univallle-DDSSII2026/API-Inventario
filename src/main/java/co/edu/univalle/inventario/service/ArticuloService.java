@@ -2,6 +2,7 @@ package co.edu.univalle.inventario.service;
 
 import co.edu.univalle.inventario.command.DefinirUmbralCommand;
 import co.edu.univalle.inventario.command.RegistrarArticuloTercerosCommand;
+import co.edu.univalle.inventario.command.RegistrarMateriaPrimaCommand;
 import co.edu.univalle.inventario.exception.ArticuloNoEncontradoException;
 import co.edu.univalle.inventario.exception.NombreDuplicadoException;
 import co.edu.univalle.inventario.model.Articulo;
@@ -62,6 +63,22 @@ public class ArticuloService {
     }
 
     /**
+     * Registra una materia prima (HU_CUTIT_11): valida la Unidad de medida y luego aplica las mismas reglas que los
+     * demás registros, con el consecutivo del prefijo MP y Tipo "Materia prima".
+     * @param command nombre y descripción ya ajustados, y Unidad de medida recibida
+     * @return el artículo guardado, con su código
+     * @throws co.edu.univalle.inventario.exception.SolicitudInvalidaException si la Unidad de medida está vacía o
+     *         no es válida
+     * @throws NombreDuplicadoException si ya existe un artículo con ese nombre
+     */
+    @Transactional
+    public Articulo registrarMateriaPrima(RegistrarMateriaPrimaCommand command) {
+        articuloValidator.validarUnidadMedida(command.unidadMedida());
+        return guardarNuevo(TipoArticulo.MATERIA_PRIMA, command.nombre(), command.descripcion(),
+                command.unidadMedida());
+    }
+
+    /**
      * Define el Umbral mínimo de un artículo (HU_CUTIT_06): valida los campos obligatorios, el formato del código,
      * que el artículo exista y el valor del umbral según su tipo y unidad de medida; luego reemplaza el umbral.
      * @param command código de la ruta y Umbral mínimo recibido
@@ -81,19 +98,23 @@ public class ArticuloService {
     }
 
     private Articulo guardarNuevo(TipoArticulo tipo, RegistrarArticuloTercerosCommand command) {
-        articuloValidator.validarNombre(command.nombre());
+        return guardarNuevo(tipo, command.nombre(), command.descripcion(), null);
+    }
+
+    private Articulo guardarNuevo(TipoArticulo tipo, String nombre, String descripcion, String unidadMedida) {
+        articuloValidator.validarNombre(nombre);
 
         String prefijo = tipo.getPrefijo();
         Consecutivo consecutivo = consecutivoRepository.findByPrefijo(prefijo)
                 .orElseThrow(() -> new IllegalStateException("No existe el consecutivo del prefijo " + prefijo));
         String codigo = consecutivo.siguiente();
 
-        Articulo articulo = Articulo.nuevo(tipo, codigo, command.nombre(), descripcionOpcional(command.descripcion()));
+        Articulo articulo = Articulo.nuevo(tipo, codigo, nombre, descripcionOpcional(descripcion), unidadMedida);
         try {
             return articuloRepository.saveAndFlush(articulo);
         } catch (DataIntegrityViolationException excepcion) {
             // El índice único de nombre rechazó un registro simultáneo con el mismo nombre.
-            throw new NombreDuplicadoException(command.nombre());
+            throw new NombreDuplicadoException(nombre);
         }
     }
 

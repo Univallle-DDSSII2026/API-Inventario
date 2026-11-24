@@ -1,9 +1,11 @@
 package co.edu.univalle.inventario.controller;
 
 import co.edu.univalle.inventario.command.RegistrarArticuloTercerosCommand;
+import co.edu.univalle.inventario.command.RegistrarMateriaPrimaCommand;
 import co.edu.univalle.inventario.dto.ArticuloDto;
 import co.edu.univalle.inventario.dto.RegistrarArticuloTercerosDto;
 import co.edu.univalle.inventario.dto.RegistroArticuloDto;
+import co.edu.univalle.inventario.dto.RegistrarMateriaPrimaDto;
 import co.edu.univalle.inventario.model.Articulo;
 import co.edu.univalle.inventario.service.ArticuloService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -89,5 +91,19 @@ public class ArticuloController {
         String umbralMinimo = dto == null ? null : dto.umbralMinimo();
         Articulo articulo = articuloService.definirUmbral(new DefinirUmbralCommand(codigo, umbralMinimo));
         return ResponseEntity.ok(UmbralActualizadoDto.de(articulo));
+    }
+
+        /**
+     * Registra una materia prima (HU_CUTIT_11).
+     * @param dto nombre, descripción y unidad de medida de la materia prima
+     * @return 201 con el mensaje de confirmación y el artículo creado
+     */
+    @PostMapping("/materias-primas")
+    @Operation(summary = "Registrar una materia prima")
+    public ResponseEntity<RegistroArticuloDto> registrarMateriaPrima(
+            @Valid @RequestBody RegistrarMateriaPrimaDto dto) {
+        Articulo articulo = articuloService.registrarMateriaPrima(
+                new RegistrarMateriaPrimaCommand(dto.nombre(), dto.descripcion(), dto.unidadMedida()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(RegistroArticuloDto.de(articulo));
     }
 }
