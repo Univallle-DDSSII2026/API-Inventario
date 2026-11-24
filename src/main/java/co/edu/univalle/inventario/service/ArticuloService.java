@@ -74,7 +74,7 @@ public class ArticuloService {
         String codigo = command.codigo() == null ? null : command.codigo().strip();
         articuloValidator.validarObligatorios(codigo, command.umbralMinimo());
         articuloValidator.validarFormatoCodigo(codigo);
-        Articulo articulo = articuloRepository.findByCodigo(codigo)
+        Articulo articulo = articuloRepository.findBloqueadoByCodigo(codigo)
                 .orElseThrow(() -> new ArticuloNoEncontradoException(codigo));
         articulo.definirUmbral(articuloValidator.validarUmbral(articulo, command.umbralMinimo()));
         return articuloRepository.saveAndFlush(articulo);
