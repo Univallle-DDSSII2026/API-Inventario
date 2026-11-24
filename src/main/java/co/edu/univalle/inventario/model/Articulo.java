@@ -55,7 +55,7 @@ public class Articulo {
     private String unidadMedida;
 
     @NotNull
-    @Column(nullable = false, precision = 14, scale = 2)
+    @Column(nullable = false, columnDefinition = "numeric")
     private BigDecimal existencias;
 
     @NotNull
@@ -122,5 +122,13 @@ public class Articulo {
      */
     public EstadoExistencias estadoExistencias() {
         return existencias.compareTo(umbralMinimo) < 0 ? EstadoExistencias.STOCK_BAJO : EstadoExistencias.NORMAL;
+    }
+
+    /**
+     * Suma unidades fabricadas ya validadas a las existencias.
+     * @param cantidad unidades que ingresan al inventario
+     */
+    public void incrementarExistencias(BigDecimal cantidad) {
+        existencias = existencias.add(cantidad);
     }
 }
