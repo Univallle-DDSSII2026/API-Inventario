@@ -276,7 +276,7 @@ class IngresoFabricacionIT {
         var articuloAnterior = jdbc.queryForMap(consultaArticulo);
         var movimientoAnterior = jdbc.queryForMap(consultaMovimiento);
 
-        var flyway = migrador.target(MigrationVersion.LATEST).load();
+        var flyway = migrador.target(MigrationVersion.fromVersion("5")).load();
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
         assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
         assertThat(jdbc.queryForMap(consultaArticulo)).isEqualTo(articuloAnterior);

@@ -1,5 +1,10 @@
 package co.edu.univalle.inventario.model;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.UUID;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -9,10 +14,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -47,6 +48,12 @@ public class Movimiento {
     @Column(nullable = false, length = 30)
     private String referencia;
 
+    @Column(length = 100)
+    private String proveedor;
+
+    @Column(name = "costo_unitario", columnDefinition = "numeric")
+    private BigDecimal costoUnitario;
+
     @Column(name = "solicitud_id", nullable = false)
     private UUID solicitudId;
 
@@ -70,6 +77,32 @@ public class Movimiento {
         movimiento.cantidad = cantidad;
         movimiento.fecha = fecha;
         movimiento.referencia = referencia;
+        movimiento.solicitudId = UUID.randomUUID();
+        movimiento.fechaRegistro = Instant.now();
+        return movimiento;
+    }
+
+    /**
+     * Crea un ingreso por compra de artículo de terceros con su propio identificador de solicitud (HU_CUTIT_13).
+     * @param articulo artículo de terceros que recibe el ingreso
+     * @param cantidad unidades compradas
+     * @param fecha fecha de la compra
+     * @param referencia número de factura u orden de compra
+     * @param proveedor nombre del proveedor
+     * @param costoUnitario costo unitario en COP
+     * @return movimiento listo para persistir
+     */
+    public static Movimiento ingresoCompra(Articulo articulo, BigDecimal cantidad, LocalDate fecha,
+            String referencia, String proveedor, BigDecimal costoUnitario) {
+        Movimiento movimiento = new Movimiento();
+        movimiento.articulo = articulo;
+        movimiento.tipo = "Ingreso";
+        movimiento.origen = "Compra";
+        movimiento.cantidad = cantidad;
+        movimiento.fecha = fecha;
+        movimiento.referencia = referencia;
+        movimiento.proveedor = proveedor;
+        movimiento.costoUnitario = costoUnitario;
         movimiento.solicitudId = UUID.randomUUID();
         movimiento.fechaRegistro = Instant.now();
         return movimiento;
