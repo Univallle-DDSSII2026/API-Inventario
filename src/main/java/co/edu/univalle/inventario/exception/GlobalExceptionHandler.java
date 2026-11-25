@@ -1,0 +1,92 @@
+package co.edu.univalle.inventario.exception;
+
+import co.edu.univalle.inventario.dto.ErrorResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSourceResolvable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+/**
+ * Handler Exception de la View Layer: convierte las excepciones en las respuestas HTTP de la Tabla 11 del DAS.
+ */
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    /**
+     * Responde 400 con el primer mensaje de validación del cuerpo (criterios 2 a 5 de HU_CUTIT_14).
+     * @param excepcion errores de Bean Validation
+     * @return respuesta 400
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> manejarValidacion(MethodArgumentNotValidException excepcion) {
+        String mensaje = excepcion.getBindingResult().getAllErrors().stream()
+                .findFirst()
+                .map(MessageSourceResolvable::getDefaultMessage)
+                .orElse("La solicitud no es válida");
+        return responder(HttpStatus.BAD_REQUEST, mensaje);
+    }
+
+    /**
+     * Responde 400 cuando el cuerpo no es un JSON legible.
+     * @param excepcion error de lectura del cuerpo
+     * @return respuesta 400
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> manejarCuerpoInvalido(HttpMessageNotReadableException excepcion) {
+        return responder(HttpStatus.BAD_REQUEST, "El cuerpo de la solicitud no es válido");
+    }
+
+    /**
+     * Responde 409 cuando el nombre del artículo ya está en uso (criterio 6 de HU_CUTIT_14).
+     * @param excepcion nombre duplicado
+     * @return respuesta 409
+     */
+    @ExceptionHandler(NombreDuplicadoException.class)
+    public ResponseEntity<ErrorResponse> manejarNombreDuplicado(NombreDuplicadoException excepcion) {
+        return responder(HttpStatus.CONFLICT, excepcion.getMessage());
+    }
+
+        /**
+     * Responde 400 con el mensaje exacto cuando la solicitud incumple una validación (criterios 2 a 4 de HU_CUTIT_06).
+     * @param excepcion validación incumplida
+     * @return respuesta 400
+     */
+    @ExceptionHandler(SolicitudInvalidaException.class)
+    public ResponseEntity<ErrorResponse> manejarSolicitudInvalida(SolicitudInvalidaException excepcion) {
+        return responder(HttpStatus.BAD_REQUEST, excepcion.getMessage());
+    }
+
+    /**
+     * Responde 404 cuando no existe un artículo con ese código (criterio 3 de HU_CUTIT_06).
+     * @param excepcion artículo inexistente
+     * @return respuesta 404
+     */
+    @ExceptionHandler(ArticuloNoEncontradoException.class)
+    public ResponseEntity<ErrorResponse> manejarArticuloNoEncontrado(ArticuloNoEncontradoException excepcion) {
+        return responder(HttpStatus.NOT_FOUND, excepcion.getMessage());
+    }
+
+    /**
+     * Responde con el estado de Spring o 500 sin exponer detalles internos.
+     * @param excepcion error no controlado
+     * @return respuesta de error
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> manejarInesperada(Exception excepcion) {
+        if (excepcion instanceof org.springframework.web.ErrorResponse errorSpring) {
+            return responder(errorSpring.getStatusCode(), "La solicitud no se pudo procesar");
+        }
+        log.error("Error inesperado", excepcion);
+        return responder(HttpStatus.INTERNAL_SERVER_ERROR, "Ocurrió un error inesperado. Intente de nuevo más tarde.");
+    }
+
+    private static ResponseEntity<ErrorResponse> responder(HttpStatusCode estado, String mensaje) {
+        return ResponseEntity.status(estado).body(new ErrorResponse(estado.value(), mensaje));
+    }
+}
